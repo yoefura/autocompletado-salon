@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Autocompletado del salón</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f2f6f3;--card:#fffefb;--tx:#23332d;--mu:#62766d;--ac:#2f7a69;--on:#fff;--hl:#f6d37a;--bd:#d6e3db;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root{--bg:#121c18;--card:#1a2a24;--tx:#e8f1ed;--mu:#9bb3a9;--ac:#7fcfba;--on:#10201b;--hl:#e9c46a;--bd:#2c4339}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.55 "IBM Plex Sans","Segoe UI",system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:16px}
+h1,h2{font-family:"Source Serif 4",Georgia,"Times New Roman",serif}
+h1{font-size:1.9rem;font-weight:700;margin:.4rem 0 .2rem;letter-spacing:-.01em}
+h2{font-size:1.15rem;font-weight:600;margin:0 0 .5rem}
+p.sub{margin:0 0 1rem;color:var(--mu)}
+section{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px;margin:14px 0;box-shadow:0 2px 10px rgba(35,51,45,.06)}
+.modos{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+button,a.btn{font:inherit;border:1px solid var(--ac);background:transparent;color:var(--ac);border-radius:8px;padding:8px 12px;cursor:pointer;text-decoration:none;display:inline-block}
+button.on{background:var(--ac);color:var(--on)}
+button:focus-visible,a.btn:focus-visible,input:focus-visible{outline:3px solid var(--hl);outline-offset:2px}
+input{width:100%;font:inherit;font-size:1.2rem;padding:12px;border:2px solid var(--ac);border-radius:10px;background:var(--bg);color:var(--tx)}
+.sug{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.sug button{border-color:var(--bd);color:var(--tx);background:var(--bg)}
+.sug small{color:var(--mu)}
+.stats{display:flex;gap:14px;flex-wrap:wrap;color:var(--mu);font-size:.9rem;margin-top:10px}
+.stats b{color:var(--tx)}
+.camino{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip{background:var(--hl);color:#1a1a1a;border-radius:999px;padding:2px 10px;font-weight:700}
+ol{margin:.3rem 0 0;padding-left:1.2rem}
+.arbol{overflow-x:auto;border:1px dashed var(--bd);border-radius:8px;padding:6px}
+svg text{fill:var(--tx);font:600 13px "IBM Plex Sans","Segoe UI",sans-serif;text-anchor:middle}
+table{border-collapse:collapse;width:100%;font-size:.95rem}
+td,th{border-bottom:1px solid var(--bd);padding:4px 6px;text-align:left}
+details summary{cursor:pointer;font-weight:700}
+footer{color:var(--mu);font-size:.85rem;margin:16px 0 28px}
+</style>
+</head>
+<body>
+<main>
+<h1>Autocompletado del salón</h1>
+<p class="sub">Escribe un nombre o un curso y mira cómo lo encuentra el árbol de prefijos.</p>
+
+<section>
+  <div class="modos">
+    <button id="mSalon" class="on">Lista del salón</button>
+    <button id="mEj">Ejemplo (caso a mano)</button>
+  </div>
+  <input id="q" type="text" placeholder="Escribe, por ejemplo: Dan" autocomplete="off" autocapitalize="off" aria-label="Buscar">
+  <div class="sug" id="sug"></div>
+  <div class="stats" id="stats"></div>
+</section>
+
+<section id="panelEj" hidden>
+  <h2>Caso a mano: trie con los integrantes y cuatro compañeros</h2>
+  <p class="sub" style="margin:0 0 8px">Palabras insertadas en este orden. Compara esta tabla con tu dibujo en la pizarra.</p>
+  <table id="tabla"></table>
+</section>
+
+<section>
+  <h2>Camino recorrido</h2>
+  <div class="camino" id="camino"></div>
+  <ol id="pasos"></ol>
+</section>
+
+<section>
+  <h2 id="tituloArbol">Árbol de prefijos</h2>
+  <p class="sub" style="margin:0 0 8px" id="notaArbol"></p>
+  <div class="arbol" id="arbol"></div>
+</section>
+
+<section>
+  <details>
+    <summary>¿Cómo funciona?</summary>
+    <p><b>Árbol de prefijos (trie):</b> cada nivel es una letra, y las palabras que empiezan igual comparten el mismo camino. Al escribir, bajas un nodo por letra sin recorrer toda la lista.</p>
+    <p><b>Montículo máximo:</b> con las palabras que cuelgan del prefijo se arma un montículo donde el padre siempre tiene más usos que sus hijos. Se extrae la raíz cinco veces y salen las 5 más usadas.</p>
+    <p><b>Comparaciones:</b> el contador suma cada comparación de usos que hace el montículo al insertar y al extraer. Cada vez que eliges una sugerencia, esa palabra suma un uso.</p>
+  </details>
+</section>
+
+<section>
+  <a class="btn" id="like" target="_blank" rel="noopener">Dar me gusta</a>
+</section>
+
+<footer>Integrantes: Yosue Humberto Fura Almanza, Danny Junior Lopez Bonifacio, Cristian Bryan Huamán Chapoñan.<br>Estructuras Discretas (CC0304) · UNMSM · FISI</footer>
+</main>
+
+<script>
+// Enlace del Formulario de Google para los "me gusta". Cámbialo por el tuyo.
+const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSczVHq3cIcyLQKh7S3fq1rwdmuKTTcSO2RBuxZn-w88MDhn7w/viewform";
+document.getElementById("like").href = FORM_URL;
+
+// Lista del salón (31 palabras) y lista del caso a mano (3 integrantes + 4 compañeros)
+const SALON = ["Cálculo","Programación","Fisica","Cristian","Cristhian","Joaquin","Jose","Daniel","Danny","Carlos","Lucero","Lucas","Loris","Camila","Angelo","Andres","Ana","Jhosney","David","Danaly","Leonardo","Lesly","Santiago","Jayco","Adrian","Javier","Alexandra","Jair","Anderson","Jhoseph","Piero"];
+const EJEMPLO = ["Yosue","Danny","Cristian","Cristhian","Daniel","Danaly","Lucas"];
+
+// Quita tildes y pasa a minúsculas: la clave del trie
+const norm = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+
+// Un nodo guarda su letra, sus hijos y, si termina una palabra, la palabra original
+const nodo = c => ({c, h:{}, fin:null});
+
+// Construye el trie y anota cuántos nodos nuevos creó cada palabra
+function construir(lista){
+  const raiz = nodo(""), log = [];
+  for(const p of lista){
+    let n = raiz, nuevos = 0;
+    for(const ch of norm(p)){
+      if(!n.h[ch]){ n.h[ch] = nodo(ch); nuevos++; }
+      n = n.h[ch];
+    }
+    n.fin = p;
+    log.push([p, nuevos]);
+  }
+  return {raiz, log};
+}
+const contar = n => 1 + Object.values(n.h).reduce((s,x)=>s+contar(x),0);
+const recoger = (n, out=[]) => { if(n.fin) out.push(n.fin); Object.values(n.h).forEach(x=>recoger(x,out)); return out; };
+
+const T = {salon: construir(SALON), ej: construir(EJEMPLO)};
+const usos = {};
+[...SALON, ...EJEMPLO].forEach(p => usos[p] = 0);
+let modo = "salon", comp = 0;
+
+// Compara dos palabras por usos (desempate alfabético) y cuenta la comparación
+function mayor(a,b){
+  comp++;
+  return usos[a] > usos[b] || (usos[a] === usos[b] && norm(a) < norm(b));
+}
+
+// Montículo máximo: inserta todas las palabras y extrae las 5 con más usos
+function top5(palabras){
+  const h = [];
+  const subir = i => { while(i>0){ const p=(i-1)>>1; if(mayor(h[i],h[p])){ [h[i],h[p]]=[h[p],h[i]]; i=p; } else break; } };
+  const bajar = i => { for(;;){ let m=i, l=2*i+1, r=l+1;
+    if(l<h.length && mayor(h[l],h[m])) m=l;
+    if(r<h.length && mayor(h[r],h[m])) m=r;
+    if(m===i) break; [h[i],h[m]]=[h[m],h[i]]; i=m; } };
+  palabras.forEach(p => { h.push(p); subir(h.length-1); });
+  const out = [];
+  while(h.length && out.length<5){
+    out.push(h[0]);
+    const u = h.pop();
+    if(h.length){ h[0]=u; bajar(0); }
+  }
+  return out;
+}
+
+// Dibuja un trie como SVG: x según las hojas, y según la profundidad
+function dibujar(raiz, camino){
+  const pos = new Map(); let hojas = 0, prof = 0;
+  (function lay(n,d){
+    prof = Math.max(prof,d);
+    const ks = Object.keys(n.h).sort();
+    if(!ks.length){ pos.set(n,[hojas++,d]); return; }
+    ks.forEach(k => lay(n.h[k], d+1));
+    const xs = ks.map(k => pos.get(n.h[k])[0]);
+    pos.set(n,[(xs[0]+xs[xs.length-1])/2, d]);
+  })(raiz,0);
+  const X = x => 24 + x*32, Y = d => 22 + d*46;
+  let ar = "", no = "";
+  (function pintar(n){
+    const [x,d] = pos.get(n);
+    Object.keys(n.h).sort().forEach(k => {
+      const c = n.h[k], [cx,cd] = pos.get(c);
+      const en = camino.includes(n) && camino.includes(c);
+      ar += `<line x1="${X(x)}" y1="${Y(d)}" x2="${X(cx)}" y2="${Y(cd)}" stroke="${en?'#d9a21b':'var(--bd)'}" stroke-width="${en?3:1.5}"/>`;
+      pintar(c);
+    });
+    const en = camino.includes(n);
+    no += `<circle cx="${X(x)}" cy="${Y(d)}" r="12" fill="${en?'var(--hl)':'var(--card)'}" stroke="var(--ac)" stroke-width="${n.fin?3:1.2}"/>` +
+          `<text x="${X(x)}" y="${Y(d)+4}" ${en?'style="fill:#1a1a1a"':''}>${n.c||"•"}</text>`;
+  })(raiz);
+  return `<svg width="${Math.max(hojas,1)*32+16}" height="${(prof+1)*46+10}" role="img" aria-label="Árbol de prefijos">${ar}${no}</svg>`;
+}
+
+function render(){
+  const t = T[modo];
+  const q = norm(document.getElementById("q").value.trim());
+  let n = t.raiz; const camino = [n], pasos = []; let ok = true, np = 0;
+  for(const ch of q){
+    np++;
+    if(n.h[ch]){ n = n.h[ch]; camino.push(n); pasos.push(`Letra «${ch}»: existe ese hijo, bajo un nivel.`); }
+    else { pasos.push(`Letra «${ch}»: no existe ese hijo, no hay palabras con este prefijo.`); ok = false; break; }
+  }
+  if(!q) pasos.push("Todavía no hay letras: estoy en la raíz y todas las palabras son candidatas.");
+
+  // Sugerencias con montículo
+  comp = 0;
+  const cand = ok ? recoger(n) : [];
+  const sug = top5(cand);
+  if(ok && cand.length) pasos.push(`Hay ${cand.length} palabra(s) bajo este nodo: armo un montículo máximo y extraigo hasta 5 por usos.`);
+  document.getElementById("sug").innerHTML = sug.length
+    ? sug.map(p => `<button data-p="${p}">${p} <small>${usos[p]} usos</small></button>`).join("")
+    : `<span class="sub">${ok ? "No hay palabras en la lista." : "Sin sugerencias: revisa las letras."}</span>`;
+  document.getElementById("stats").innerHTML =
+    `<span>Pasos en el trie: <b>${np}</b></span><span>Comparaciones del montículo: <b>${comp}</b></span><span>Palabras con ese prefijo: <b>${cand.length}</b></span>`;
+
+  // Camino y paso a paso
+  document.getElementById("camino").innerHTML = camino.map(x => `<span class="chip">${x.c||"raíz"}</span>`).join(" → ");
+  document.getElementById("pasos").innerHTML = pasos.map(p => `<li>${p}</li>`).join("");
+
+  // Árbol: completo en el ejemplo; en la lista del salón, el subárbol del prefijo
+  const base = modo === "ej" ? t.raiz : (ok ? n : t.raiz);
+  const total = contar(base);
+  const nota = document.getElementById("notaArbol"), cont = document.getElementById("arbol");
+  document.getElementById("tituloArbol").textContent = modo === "ej" ? "Árbol de prefijos del caso a mano" : "Árbol de prefijos (desde tu prefijo)";
+  if(total > 80){
+    nota.textContent = `Este tramo tiene ${total} nodos. Escribe más letras para verlo dibujado.`;
+    cont.innerHTML = "";
+  } else {
+    nota.textContent = "Nodos amarillos: camino de tu prefijo. Borde grueso: aquí termina una palabra.";
+    cont.innerHTML = dibujar(base, camino);
+  }
+}
+
+function tablaEjemplo(){
+  const {raiz, log} = T.ej; let acum = 0;
+  let f = "<tr><th>Palabra</th><th>Nodos nuevos</th><th>Acumulado</th></tr>";
+  log.forEach(([p,k]) => { acum += k; f += `<tr><td>${p}</td><td>${k}</td><td>${acum}</td></tr>`; });
+  f += `<tr><th colspan="3">Total: ${contar(raiz)-1} nodos sin la raíz, ${contar(raiz)} contando la raíz.</th></tr>`;
+  document.getElementById("tabla").innerHTML = f;
+}
+
+function cambiar(m){
+  modo = m;
+  document.getElementById("mSalon").classList.toggle("on", m==="salon");
+  document.getElementById("mEj").classList.toggle("on", m==="ej");
+  document.getElementById("panelEj").hidden = m !== "ej";
+  document.getElementById("q").value = "";
+  render();
+}
+
+document.getElementById("q").addEventListener("input", render);
+document.getElementById("mSalon").onclick = () => cambiar("salon");
+document.getElementById("mEj").onclick = () => cambiar("ej");
+document.getElementById("sug").addEventListener("click", e => {
+  const b = e.target.closest("button"); if(!b) return;
+  usos[b.dataset.p]++;            // elegir una sugerencia suma un uso
+  document.getElementById("q").value = b.dataset.p;
+  render();
+});
+tablaEjemplo();
+render();
+</script>
+</body>
+</html>
